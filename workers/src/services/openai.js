@@ -1,5 +1,5 @@
 /**
- * OpenAI API連携サービス
+ * OpenAI API連携サービス（フレーム画像対応版）
  */
 
 import { CRITERIA } from '../constants/criteria.js';
@@ -7,9 +7,13 @@ import { CRITERIA } from '../constants/criteria.js';
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 
 /**
- * OpenAI APIを呼び出して動画を評価
+ * OpenAI APIを呼び出して動画フレームを評価
+ * @param {object} env - 環境変数
+ * @param {string[]} frames - Base64エンコードされた画像フレームの配列
+ * @param {object} prompt - システムプロンプトとユーザープロンプト
+ * @param {string} movementType - 動作種別
  */
-export async function callOpenAI(env, videoBase64, prompt, movementType) {
+export async function callOpenAI(env, frames, prompt, movementType) {
     const apiKey = env.OPENAI_API_KEY;
 
     if (!apiKey) {
@@ -18,6 +22,27 @@ export async function callOpenAI(env, videoBase64, prompt, movementType) {
     }
 
     try {
+        // ユーザーコンテンツを構築（テキスト + 複数の画像）
+        const userContent = [
+            {
+                type: 'text',
+                text: prompt.user
+            }
+        ];
+
+        // 各フレームを画像として追加
+        frames.forEach((frame, index) => {
+            userContent.push({
+                type: 'image_url',
+                image_url: {
+                    url: `data:image/jpeg;base64,${frame}`,
+                    detail: 'low'  // コスト削減のため low を使用
+                }
+            });
+        });
+
+        console.log(`Sending ${frames.length} frames to OpenAI Vision API...`);
+
         const response = await fetch(OPENAI_API_URL, {
             method: 'POST',
             headers: {
@@ -33,19 +58,7 @@ export async function callOpenAI(env, videoBase64, prompt, movementType) {
                     },
                     {
                         role: 'user',
-                        content: [
-                            {
-                                type: 'text',
-                                text: prompt.user
-                            },
-                            {
-                                type: 'image_url',
-                                image_url: {
-                                    url: `data:video/mp4;base64,${videoBase64}`,
-                                    detail: 'auto'
-                                }
-                            }
-                        ]
+                        content: userContent
                     }
                 ],
                 max_tokens: 2000,
@@ -56,7 +69,7 @@ export async function callOpenAI(env, videoBase64, prompt, movementType) {
         if (!response.ok) {
             const error = await response.text();
             console.error('OpenAI API error:', error);
-            throw new Error(`OpenAI API returned ${response.status}`);
+            throw new Error(`OpenAI API returned ${response.status}: ${error}`);
         }
 
         const data = await response.json();
@@ -66,6 +79,7 @@ export async function callOpenAI(env, videoBase64, prompt, movementType) {
             throw new Error('No content in OpenAI response');
         }
 
+        console.log('OpenAI response received successfully');
         return JSON.parse(content);
 
     } catch (error) {

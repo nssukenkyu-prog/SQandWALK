@@ -3,7 +3,7 @@
  */
 
 const VALID_MOVEMENT_TYPES = ['squat_front', 'squat_side', 'gait'];
-const MAX_VIDEO_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
+const MAX_FRAMES = 10;
 
 /**
  * 評価リクエストのバリデーション
@@ -17,10 +17,17 @@ export function validateRequest(body) {
         };
     }
 
-    if (!body.video) {
+    if (!body.frames || !Array.isArray(body.frames) || body.frames.length === 0) {
         return {
             valid: false,
-            message: '動画データが含まれていません'
+            message: 'フレーム画像データが含まれていません'
+        };
+    }
+
+    if (body.frames.length > MAX_FRAMES) {
+        return {
+            valid: false,
+            message: `フレーム数が多すぎます。最大${MAX_FRAMES}フレームまで対応しています`
         };
     }
 
@@ -39,28 +46,8 @@ export function validateRequest(body) {
         };
     }
 
-    // 動画サイズチェック（Base64の概算サイズ）
-    const estimatedSize = (body.video.length * 3) / 4;
-    if (estimatedSize > MAX_VIDEO_SIZE_BYTES) {
-        return {
-            valid: false,
-            message: `動画サイズが大きすぎます。50MB以下のファイルをアップロードしてください`
-        };
-    }
-
     return {
         valid: true,
         message: null
     };
-}
-
-/**
- * Base64文字列の検証
- */
-export function isValidBase64(str) {
-    try {
-        return btoa(atob(str)) === str;
-    } catch (e) {
-        return false;
-    }
 }

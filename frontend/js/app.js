@@ -98,6 +98,85 @@ function fileToBase64(file) {
 }
 
 /**
+ * 動画からフレームを抽出（OpenAI Vision API用）
+ * @param {File} videoFile - 動画ファイル
+ * @param {number} numFrames - 抽出するフレーム数（デフォルト: 6）
+ * @returns {Promise<string[]>} Base64エンコードされた画像の配列
+ */
+async function extractFramesFromVideo(videoFile, numFrames = 6) {
+    return new Promise((resolve, reject) => {
+        const video = document.createElement('video');
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const frames = [];
+
+        video.preload = 'metadata';
+        video.muted = true;
+        video.playsInline = true;
+
+        video.onloadedmetadata = () => {
+            const duration = video.duration;
+            // フレームを均等な間隔で抽出（最初と最後を含む）
+            const interval = duration / (numFrames + 1);
+            const timestamps = [];
+            for (let i = 1; i <= numFrames; i++) {
+                timestamps.push(interval * i);
+            }
+
+            // キャンバスサイズを設定（最大1024px）
+            const maxSize = 1024;
+            let width = video.videoWidth;
+            let height = video.videoHeight;
+
+            if (width > maxSize || height > maxSize) {
+                if (width > height) {
+                    height = (height / width) * maxSize;
+                    width = maxSize;
+                } else {
+                    width = (width / height) * maxSize;
+                    height = maxSize;
+                }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+
+            let currentFrame = 0;
+
+            const captureFrame = () => {
+                if (currentFrame >= timestamps.length) {
+                    // 全フレーム抽出完了
+                    resolve(frames);
+                    URL.revokeObjectURL(video.src);
+                    return;
+                }
+
+                video.currentTime = timestamps[currentFrame];
+            };
+
+            video.onseeked = () => {
+                // フレームを描画してBase64に変換
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                const base64 = dataUrl.split(',')[1];
+                frames.push(base64);
+                currentFrame++;
+                captureFrame();
+            };
+
+            // 最初のフレームを抽出開始
+            captureFrame();
+        };
+
+        video.onerror = () => {
+            reject(new Error('動画の読み込みに失敗しました'));
+        };
+
+        video.src = URL.createObjectURL(videoFile);
+    });
+}
+
+/**
  * スコアの解釈テキストを取得
  */
 function getScoreInterpretation(totalScore) {
@@ -175,16 +254,16 @@ function handleFileRemove() {
 // ============================================
 
 /**
- * 評価リクエストを送信
+ * 評価リクエストを送信（フレーム画像を送信）
  */
-async function sendEvaluationRequest(videoBase64, movementType) {
+async function sendEvaluationRequest(frames, movementType) {
     const response = await fetch(CONFIG.API_ENDPOINT, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            video: videoBase64,
+            frames: frames,  // Base64エンコードされた画像の配列
             movementType: movementType
         })
     });
@@ -258,14 +337,16 @@ async function performEvaluation() {
     showSection('loading');
 
     try {
-        // 動画をBase64に変換
-        const videoBase64 = await fileToBase64(state.selectedFile);
+        // 動画からフレームを抽出（6フレーム）
+        console.log('動画からフレームを抽出中...');
+        const frames = await extractFramesFromVideo(state.selectedFile, 6);
+        console.log(`${frames.length}フレームを抽出しました`);
 
         let result;
 
         // API呼び出し（エラー時はモック結果を使用）
         try {
-            result = await sendEvaluationRequest(videoBase64, state.movementType);
+            result = await sendEvaluationRequest(frames, state.movementType);
         } catch (apiError) {
             console.warn('API呼び出しに失敗しました。デモモードで表示します。', apiError);
             // デモ用のモック結果を使用

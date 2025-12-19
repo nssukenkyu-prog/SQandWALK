@@ -28,13 +28,13 @@ export async function handleEvaluate(request, env) {
             });
         }
 
-        const { video, movementType } = body;
+        const { frames, movementType } = body;
 
         // プロンプト構築
         const prompt = buildPrompt(movementType);
 
-        // OpenAI API呼び出し
-        const openaiResponse = await callOpenAI(env, video, prompt, movementType);
+        // OpenAI API呼び出し（フレーム画像を送信）
+        const openaiResponse = await callOpenAI(env, frames, prompt, movementType);
 
         // レスポンス整形
         const result = formatEvaluationResult(openaiResponse, movementType);
