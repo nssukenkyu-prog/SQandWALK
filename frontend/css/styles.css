@@ -567,6 +567,41 @@ body {
     content: "💡 ";
 }
 
+/* フレーム参照バッジ */
+.frame-references {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    margin-bottom: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.frame-ref-label {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+.frame-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 8px;
+    background: hsl(var(--primary-hue), 70%, 90%);
+    color: var(--primary-dark);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    border: 1px solid hsl(var(--primary-hue), 70%, 80%);
+}
+
+@media (prefers-color-scheme: dark) {
+    .frame-badge {
+        background: hsl(var(--primary-hue), 50%, 25%);
+        color: hsl(var(--primary-hue), 70%, 80%);
+        border-color: hsl(var(--primary-hue), 50%, 40%);
+    }
+}
+
 /* スコアによる色分け */
 .criteria-card[data-score="5"] {
     border-left-color: hsl(160, 70%, 45%);

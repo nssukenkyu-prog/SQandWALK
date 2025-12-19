@@ -277,28 +277,76 @@ async function sendEvaluationRequest(frames, movementType) {
 }
 
 /**
- * デモ用のモック評価結果を生成
- * ※実際のAPI連携時は削除
+ * デモ用のモック評価結果を生成（専門的評価観点）
+ * ※実際のAPI連携時のフォールバック用
  */
 function generateMockResult(movementType) {
     const criteriaMap = {
         squat_front: [
-            { name: '膝の安定性', desc: '膝が内側に入っていないか' },
-            { name: '足幅・足位置', desc: '肩幅程度で左右対称か' },
-            { name: '体幹の安定性', desc: '過度な側方への傾きがないか' },
-            { name: '動作の対称性', desc: '左右均等に動作できているか' }
+            {
+                name: '膝関節外反（Knee Valgus）',
+                desc: '下降相・上昇相での膝関節の内側偏位',
+                frames: [3, 4]
+            },
+            {
+                name: '荷重分布（Weight Distribution）',
+                desc: '両脚への均等な荷重配分',
+                frames: [2, 3, 4, 5]
+            },
+            {
+                name: '体幹側方偏位（Lateral Trunk Shift）',
+                desc: '体幹の左右への傾斜・側屈',
+                frames: [3, 4]
+            },
+            {
+                name: '足部アーチ制御（Foot Arch Control）',
+                desc: '足部内側縦アーチの維持',
+                frames: [4]
+            }
         ],
         squat_side: [
-            { name: '膝の位置', desc: '膝がつま先より過度に前に出ていないか' },
-            { name: '股関節の屈曲', desc: '適切な深さまで屈曲できているか' },
-            { name: '脊柱のアライメント', desc: '過度な前傾・後傾がないか' },
-            { name: '動作の滑らかさ', desc: 'スムーズに上下動できているか' }
+            {
+                name: 'ヒップヒンジ（Hip Hinge）',
+                desc: '股関節屈曲と体幹前傾のバランス',
+                frames: [2, 3]
+            },
+            {
+                name: '膝関節軌道（Knee Tracking）',
+                desc: '膝関節の前方移動量と脛骨角度',
+                frames: [4]
+            },
+            {
+                name: '脊柱アライメント（Spine Alignment）',
+                desc: '脊柱の自然な彎曲の維持',
+                frames: [3, 4]
+            },
+            {
+                name: '深さと動作制御（Depth & Control）',
+                desc: '目標深度への到達と動作の滑らかさ',
+                frames: [1, 2, 3, 4, 5, 6]
+            }
         ],
         gait: [
-            { name: '腕振り', desc: '自然な振り幅・リズムか' },
-            { name: '歩幅', desc: '一定のリズムで歩けているか' },
-            { name: '接地パターン', desc: '踵接地→足底→蹴り出しの流れ' },
-            { name: '姿勢', desc: '頭部・体幹のアライメント' }
+            {
+                name: '初期接地（Initial Contact）',
+                desc: '踵接地パターンと下肢アライメント',
+                frames: [1, 2]
+            },
+            {
+                name: '立脚中期安定性（Midstance Stability）',
+                desc: '単脚支持期の骨盤・体幹の安定性',
+                frames: [3]
+            },
+            {
+                name: '蹴り出し（Push-off）',
+                desc: '推進力生成と足関節機能',
+                frames: [4, 5]
+            },
+            {
+                name: '腕振りと協調性（Arm Swing）',
+                desc: '上下肢の協調的な運動パターン',
+                frames: [1, 2, 3, 4, 5, 6]
+            }
         ]
     };
 
@@ -307,10 +355,11 @@ function generateMockResult(movementType) {
         return {
             name: c.name,
             score: score,
-            rationale: `${c.desc}について観察した結果、${score >= 4 ? '適切な動作パターンが見られます' : '改善の余地が見られます'}。`,
+            frameReferences: c.frames,
+            rationale: `フレーム${c.frames.join(', ')}で${c.desc}を観察した結果、${score >= 4 ? '適切な動作パターンが見られます' : '改善の余地が見られます'}。`,
             feedback: score >= 4
-                ? 'この観点は良好です。現在の動作を維持していきましょう。'
-                : `${c.desc}を意識して練習することで、さらに改善が期待できます。`
+                ? 'この観点は良好です。現在の動作パターンを維持していきましょう。'
+                : `${c.desc}を意識した練習を推奨します。鏡の前での練習やビデオフィードバックが効果的です。`
         };
     });
 
@@ -321,7 +370,7 @@ function generateMockResult(movementType) {
             movementType: movementType,
             criteria: criteria,
             totalScore: totalScore,
-            overallFeedback: '全体的に動作の基本は押さえられています。各観点のフィードバックを参考に、意識的な練習を続けることで、さらなる向上が期待できます。動作の改善は一朝一夕には達成できませんが、継続的な取り組みが大切です。'
+            overallFeedback: '動作分析を行いました。全体的に基本的な動作パターンは確立されています。各観点のフィードバックを参考に、特に改善が必要な観点から優先的に取り組むことで、効率的な動作習得が期待できます。継続的な練習と振り返りが重要です。'
         },
         disclaimer: 'この評価は教育目的の参考情報です。医学的診断ではありません。'
     };
@@ -381,20 +430,31 @@ function displayResult(result) {
     elements.totalScoreValue.textContent = evaluation.totalScore;
     elements.scoreInterpretation.textContent = getScoreInterpretation(evaluation.totalScore);
 
-    // 観点別スコア
-    elements.criteriaScores.innerHTML = evaluation.criteria.map(c => `
-    <div class="criteria-card" data-score="${c.score}">
-      <div class="criteria-header">
-        <span class="criteria-name">${c.name}</span>
-        <div class="criteria-score">
-          <span class="score-badge">${c.score}</span>
-          <span class="score-label">/ 5</span>
+    // 観点別スコア（フレーム参照を含む）
+    elements.criteriaScores.innerHTML = evaluation.criteria.map(c => {
+        // フレーム参照バッジを生成
+        const frameRefHtml = c.frameReferences && c.frameReferences.length > 0
+            ? `<div class="frame-references">
+                 <span class="frame-ref-label">📷 参照フレーム:</span>
+                 ${c.frameReferences.map(f => `<span class="frame-badge">F${f}</span>`).join('')}
+               </div>`
+            : '';
+
+        return `
+        <div class="criteria-card" data-score="${c.score}">
+          <div class="criteria-header">
+            <span class="criteria-name">${c.name}</span>
+            <div class="criteria-score">
+              <span class="score-badge">${c.score}</span>
+              <span class="score-label">/ 5</span>
+            </div>
+          </div>
+          ${frameRefHtml}
+          <p class="criteria-rationale">${c.rationale}</p>
+          <p class="criteria-feedback">${c.feedback}</p>
         </div>
-      </div>
-      <p class="criteria-rationale">${c.rationale}</p>
-      <p class="criteria-feedback">${c.feedback}</p>
-    </div>
-  `).join('');
+      `;
+    }).join('');
 
     // 総合フィードバック
     elements.overallFeedbackText.textContent = evaluation.overallFeedback;

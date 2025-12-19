@@ -1,8 +1,8 @@
 /**
- * プロンプト構築サービス
+ * プロンプト構築サービス（専門的評価版）
  */
 
-import { CRITERIA, SCORE_DEFINITIONS } from '../constants/criteria.js';
+import { CRITERIA, SCORE_DEFINITIONS, FRAME_PHASE_DESCRIPTIONS } from '../constants/criteria.js';
 
 /**
  * 禁止用語リスト
@@ -18,9 +18,9 @@ const PROHIBITED_TERMS = [
 export function buildPrompt(movementType) {
     const criteriaList = CRITERIA[movementType] || [];
     const movementLabels = {
-        squat_front: 'スクワット（前方視点）',
-        squat_side: 'スクワット（側方視点）',
-        gait: '歩行動作'
+        squat_front: 'スクワット（前方視点・前額面分析）',
+        squat_side: 'スクワット（側方視点・矢状面分析）',
+        gait: '歩行動作（矢状面分析）'
     };
 
     const systemPrompt = buildSystemPrompt();
@@ -36,7 +36,13 @@ export function buildPrompt(movementType) {
  * システムプロンプトを構築
  */
 function buildSystemPrompt() {
-    return `あなたは運動学習を支援する教育AIです。動画から動作パターンを観察し、教育的なフィードバックを提供します。
+    return `あなたは運動学・バイオメカニクスの専門知識を持つ教育AIです。
+動画から抽出されたフレーム画像を分析し、動作パターンを専門的観点から評価してフィードバックを提供します。
+
+## あなたの役割
+- 運動学的観点から動作パターンを観察・分析する
+- 各評価観点について、具体的な所見と教育的フィードバックを提供する
+- どのフレーム（画像）を根拠に評価したかを明示する
 
 ## 絶対に守るべきルール
 
@@ -45,16 +51,9 @@ function buildSystemPrompt() {
 3. 評価は教育目的の参考情報であることを常に意識してください
 4. 最終判断は教員・指導者・本人が行う前提で回答してください
 
-## 使用すべき表現例
-
-❌ 「膝の動きが異常です」
-✅ 「膝が内側に入る傾向が見られます」
-
-❌ 「姿勢に問題があります」
-✅ 「体幹がやや前傾している場面があります」
-
-❌ 「この動作は間違っています」
-✅ 「この観点では改善の余地が見られます」
+## 専門用語の使い方
+- 専門用語は使用してよいが、必ず日本語での説明を併記する
+- 例：「膝関節外反（Knee Valgus）が観察されます」
 
 ## スコアの意味
 
@@ -67,14 +66,15 @@ ${Object.entries(SCORE_DEFINITIONS).map(([score, def]) => `- ${score}点: ${def}
 {
   "criteria": [
     {
-      "name": "観点名",
+      "name": "評価観点名",
       "score": 1-5の整数,
-      "rationale": "観察に基づく根拠説明",
-      "feedback": "改善に向けたアドバイス"
+      "rationale": "観察に基づく詳細な所見（どのフレームで何が観察されたか）",
+      "frameReferences": [使用したフレーム番号の配列, 例: [2, 3, 4]],
+      "feedback": "改善に向けた具体的なアドバイス（エクササイズ提案も可）"
     }
   ],
   "totalScore": 4観点の合計点,
-  "overallFeedback": "全体的なフィードバック（100-200字程度）"
+  "overallFeedback": "全体的なフィードバック（動作の特徴、強み、改善優先順位を含む）"
 }`;
 }
 
@@ -82,23 +82,42 @@ ${Object.entries(SCORE_DEFINITIONS).map(([score, def]) => `- ${score}点: ${def}
  * ユーザープロンプトを構築
  */
 function buildUserPrompt(movementType, movementLabel, criteriaList) {
-    const criteriaDescription = criteriaList.map((c, i) =>
-        `${i + 1}. ${c.name}: ${c.description}`
-    ).join('\n');
+    const isSquat = movementType.startsWith('squat');
+    const phaseDescriptions = isSquat
+        ? FRAME_PHASE_DESCRIPTIONS.squat
+        : FRAME_PHASE_DESCRIPTIONS.gait;
 
-    return `以下の動画は「${movementLabel}」の動作です。
-教育目的で、動作パターンを観察し評価してください。
+    const phaseList = Object.entries(phaseDescriptions)
+        .map(([num, desc]) => `  - フレーム${num}: ${desc}`)
+        .join('\n');
+
+    const criteriaDescription = criteriaList.map((c, i) => {
+        const points = c.detailedPoints.map(p => `    - ${p}`).join('\n');
+        return `### ${i + 1}. ${c.name}
+**観察ポイント**: ${c.description}
+**詳細チェック項目**:
+${points}
+**関連筋群**: ${c.relatedMuscles.join('、')}
+**主な観察フェーズ**: ${c.framePhase}`;
+    }).join('\n\n');
+
+    return `## 評価対象
+「${movementLabel}」の動作を分析してください。
+
+## 送信されるフレーム画像について
+6枚のフレーム画像が送信されます。各フレームは動作の異なるフェーズを表しています：
+${phaseList}
 
 ## 評価観点
 
 ${criteriaDescription}
 
-## 注意事項
+## 分析の注意点
 
-- 各観点を1〜5点で評価してください
-- 点数の根拠を具体的に説明してください
-- 改善に向けた建設的なフィードバックを提供してください
-- 断定的な表現や医学用語は避けてください
+1. **フレーム参照を明記**: 各観点の評価で、どのフレーム（1-6）を根拠にしたかを必ず記載してください
+2. **具体的な所見**: 「〜が見られる」「〜の傾向がある」など、観察に基づく具体的な記述をしてください
+3. **改善提案**: フィードバックには可能であれば具体的なエクササイズや意識するポイントを含めてください
+4. **禁止表現**: 医学的診断を示唆する表現は使用しないでください
 
-動画を分析し、JSON形式で評価結果を出力してください。`;
+画像を分析し、JSON形式で評価結果を出力してください。`;
 }
