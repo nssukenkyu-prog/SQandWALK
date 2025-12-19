@@ -1,0 +1,11 @@
+name = "movement-eval-api"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+MAX_VIDEO_SIZE_MB = "50"
+# ALLOWED_ORIGINS はデプロイ後に設定
+# ALLOWED_ORIGINS = "https://your-project.pages.dev"
+
+# シークレット（wrangler secret put OPENAI_API_KEY で設定）
+# OPENAI_API_KEY = "sk-..."

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="動作評価AIシステム - 教育目的の動作分析ツール">
+    <title>動作評価AIシステム | Movement Evaluation System</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- ヘッダー -->
+        <header class="header">
+            <div class="header-content">
+                <h1 class="logo">
+                    <span class="logo-icon">📊</span>
+                    動作評価AIシステム
+                </h1>
+                <p class="header-subtitle">Movement Evaluation System for Education</p>
+            </div>
+        </header>
+
+        <!-- 免責表示バナー -->
+        <div class="disclaimer-banner">
+            <span class="disclaimer-icon">⚠️</span>
+            <p>
+                この評価はAIによる<strong>教育目的の参考情報</strong>です。医学的診断ではありません。
+                動作の改善については、教員や専門家にご相談ください。
+            </p>
+        </div>
+
+        <!-- メインコンテンツ -->
+        <main class="main-content">
+            <!-- アップロードセクション -->
+            <section class="upload-section" id="uploadSection">
+                <div class="section-header">
+                    <h2>動画をアップロード</h2>
+                    <p>評価したい動作の動画ファイルを選択してください</p>
+                </div>
+
+                <!-- 動作種別選択 -->
+                <div class="movement-type-selector">
+                    <h3>動作種別を選択</h3>
+                    <div class="movement-options">
+                        <label class="movement-option">
+                            <input type="radio" name="movementType" value="squat_front" checked>
+                            <div class="option-card">
+                                <span class="option-icon">🏋️</span>
+                                <span class="option-label">スクワット（前方）</span>
+                                <span class="option-desc">正面から撮影した動画</span>
+                            </div>
+                        </label>
+                        <label class="movement-option">
+                            <input type="radio" name="movementType" value="squat_side">
+                            <div class="option-card">
+                                <span class="option-icon">🏋️</span>
+                                <span class="option-label">スクワット（側方）</span>
+                                <span class="option-desc">横から撮影した動画</span>
+                            </div>
+                        </label>
+                        <label class="movement-option">
+                            <input type="radio" name="movementType" value="gait">
+                            <div class="option-card">
+                                <span class="option-icon">🚶</span>
+                                <span class="option-label">歩行動作</span>
+                                <span class="option-desc">歩行を側方から撮影</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- ドロップエリア -->
+                <div class="drop-zone" id="dropZone">
+                    <div class="drop-zone-content">
+                        <span class="drop-icon">📁</span>
+                        <p class="drop-text">動画ファイルをドラッグ＆ドロップ</p>
+                        <p class="drop-subtext">または</p>
+                        <label class="file-upload-btn">
+                            <input type="file" id="videoInput" accept="video/*" hidden>
+                            ファイルを選択
+                        </label>
+                        <p class="file-info">対応形式: MP4, MOV, WebM（最大50MB）</p>
+                    </div>
+                </div>
+
+                <!-- 選択済みファイル表示 -->
+                <div class="selected-file" id="selectedFile" style="display: none;">
+                    <div class="file-preview">
+                        <video id="videoPreview" controls></video>
+                    </div>
+                    <div class="file-details">
+                        <p class="file-name" id="fileName"></p>
+                        <p class="file-size" id="fileSize"></p>
+                        <button class="remove-file-btn" id="removeFile">✕ 削除</button>
+                    </div>
+                </div>
+
+                <!-- 評価ボタン -->
+                <button class="evaluate-btn" id="evaluateBtn" disabled>
+                    <span class="btn-icon">🔍</span>
+                    評価を開始
+                </button>
+            </section>
+
+            <!-- ローディング -->
+            <section class="loading-section" id="loadingSection" style="display: none;">
+                <div class="loading-content">
+                    <div class="loading-spinner"></div>
+                    <p class="loading-text">動画を分析しています...</p>
+                    <p class="loading-subtext">AIが動作パターンを評価中です。しばらくお待ちください。</p>
+                </div>
+            </section>
+
+            <!-- 評価結果セクション -->
+            <section class="result-section" id="resultSection" style="display: none;">
+                <div class="section-header">
+                    <h2>評価結果</h2>
+                    <p id="movementTypeLabel">スクワット（前方）の評価</p>
+                </div>
+
+                <!-- 総合スコア -->
+                <div class="total-score-card" id="totalScoreCard">
+                    <div class="score-circle">
+                        <span class="score-value" id="totalScoreValue">0</span>
+                        <span class="score-max">/ 20</span>
+                    </div>
+                    <div class="score-interpretation" id="scoreInterpretation"></div>
+                </div>
+
+                <!-- 観点別スコア -->
+                <div class="criteria-scores" id="criteriaScores">
+                    <!-- 動的に生成 -->
+                </div>
+
+                <!-- 総合フィードバック -->
+                <div class="overall-feedback-card" id="overallFeedbackCard">
+                    <h3>💡 総合フィードバック</h3>
+                    <p id="overallFeedbackText"></p>
+                </div>
+
+                <!-- 教育的注意 -->
+                <div class="educational-note">
+                    <h4>📚 この評価の活用について</h4>
+                    <ul>
+                        <li>点数は「良い・悪い」の判定ではなく、<strong>自己比較・振り返り</strong>のための指標です</li>
+                        <li>同じ動作を繰り返し撮影し、変化を観察することで学習効果が高まります</li>
+                        <li>気になる点があれば、教員や専門家に相談してください</li>
+                    </ul>
+                </div>
+
+                <!-- アクションボタン -->
+                <div class="result-actions">
+                    <button class="action-btn secondary" id="newEvaluationBtn">
+                        🔄 新しい評価を行う
+                    </button>
+                </div>
+            </section>
+        </main>
+
+        <!-- フッター -->
+        <footer class="footer">
+            <p>
+                このシステムは<strong>教育・研究目的</strong>で開発されています。
+                医学的診断や治療の代替となるものではありません。
+            </p>
+            <p class="copyright">© 2024 Movement Evaluation System</p>
+        </footer>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+
+</html>
