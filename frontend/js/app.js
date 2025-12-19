@@ -7,10 +7,8 @@
 // 設定
 // ============================================
 const CONFIG = {
-    // Workers APIエンドポイント（デプロイ後に変更）
-    API_ENDPOINT: 'https://movement-eval-api.YOUR_SUBDOMAIN.workers.dev/api/evaluate',
-    // 開発時はローカルのWorkers開発サーバーを使用
-    // API_ENDPOINT: 'http://localhost:8787/api/evaluate',
+    // Workers APIエンドポイント
+    API_ENDPOINT: 'https://movement-eval-api.nssu-kenkyu.workers.dev/api/evaluate',
 
     MAX_FILE_SIZE_MB: 50,
     ALLOWED_TYPES: ['video/mp4', 'video/quicktime', 'video/webm'],
